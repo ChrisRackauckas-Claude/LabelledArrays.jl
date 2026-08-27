@@ -1,4 +1,5 @@
 using LabelledArrays, OrdinaryDiffEq, SciMLBase, Test
+using ADTypes: AutoFiniteDiff
 
 LorenzVector = @SLArray (3,) (:x, :y, :z)
 LorenzParameterVector = @SLArray (3,) (:σ, :ρ, :β)
@@ -14,7 +15,9 @@ u0 = LorenzVector(1.0, 0.0, 0.0)
 p = LorenzParameterVector(10.0, 28.0, 8 / 3)
 tspan = (0.0, 10.0)
 prob = ODEProblem(f, u0, tspan, p)
-sol = solve(prob, Rosenbrock23())
+# Rosenbrock23's default ForwardDiff AD passes a plain SizedVector into the OOP rhs;
+# finite-diff AD keeps labelled state access working.
+sol = solve(prob, Rosenbrock23(autodiff = AutoFiniteDiff()))
 @test sol.retcode == SciMLBase.ReturnCode.Success
 sol = solve(prob, Tsit5())
 @test prob.u0 === sol.u[1] === u0
@@ -35,7 +38,7 @@ prob = ODEProblem(iip_f, u0, tspan, p)
 @test similar(u0) isa LArray
 @test zero(u0) isa LArray
 
-sol = solve(prob, Rosenbrock23())
+sol = solve(prob, Rosenbrock23(autodiff = AutoFiniteDiff()))
 sol = solve(prob, Tsit5())
 @test typeof(prob.u0) == eltype(sol.u) == typeof(u0)
 @test prob.p === p
